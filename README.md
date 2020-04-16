@@ -20,7 +20,7 @@ Alternatively, if you wish to build the Donkey Unity environment yourself. You n
 
 Notice that I do have the Windows executable available for download. If you are Windows users, please go ahead and build the environment yourself.
 
-### Train Donkey car with Reinforcement Learning
+### Install Donkeycar
 
 First, we have to install `donkey_gym` python package, which extends the OpenAI gym class to allow RL developers to interact with Donkey environment using the familiar OpenAI gym like interface. 
 
