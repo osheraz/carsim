@@ -42,11 +42,7 @@ Notice that by default a Unity GUI will be launched where you can see the Donkey
 ## Dependencies
 
 * [python 3.4+ 64 bit](https://www.python.org/)
-* [tensorflow-1+](https://github.com/tensorflow/tensorflow)
-* [keras-2+](https://github.com/fchollet/keras)
-* [h5py](http://www.h5py.org/)
 * [pillow](https://python-pillow.org/)
-* [skimage](http://scikit-image.org/docs/dev/install.html)
 * [opencv-python](https://pypi.org/project/opencv-python/)
 * [python-socketio](https://pypi.python.org/pypi/python-socketio)
 * [flask](https://pypi.python.org/pypi/Flask)
