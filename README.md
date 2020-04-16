@@ -5,14 +5,7 @@ Teleoperation of a Mobile robot under communication delays using donkeycar layou
 
 [Donkey Car](http://www.donkeycar.com) is an open source DIY self driving platform for small scale RC cars. This repo includes implementation of a **Donkey Car simulator that is reinforcement learning friendly**. You can interact with the Donkey environment using the familiar OpenAI gym like interface. The code was modified from [Tawn Kramer sdsandbox repo](https://github.com/tawnkramer/sdsandbox).
 
-As a simple demo, I've implemented Double Deep Q Learning (DDQN) and used it to train Donkey car to drive itself in the simulator. The below screencast shows the trained Donkey car (after ~100 episodes) in action. 
-
 <img src="https://flyyufelix.github.io/img/ddqn_demo.gif" width="500">
-
-My goal is to use reinforcement learning to train Donkey Car to compete in a real car race. This involved having the Donkey car trained in simulation first and transfer the learned policy to the real world. 
-
-For more information about this project, please check out my blog post at
-https://flyyufelix.github.io/2018/09/11/donkey-rl-simulation.html.
 
 ## Usage
 
