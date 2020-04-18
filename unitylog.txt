@@ -19,9 +19,9 @@ EXT_shadow_funcs GL_EXT_stencil_two_side GL_EXT_stencil_wrap GL_EXT_texture3D GL
 ccess_behavior GL_KHR_robustness GL_KTX_buffer_region GL_NV_alpha_to_coverage_dither_control GL_NV_bindless_multi_draw_indirect GL_NV_bindless_multi_draw_indirect_count GL_NV_blend_equation_advanced GL_NV_blend_square GL_NV_command_list GL_NV_compute_program5 GL_NV_conditional_render GL_NV_copy_depth_to_color GL_NV_copy_image GL_NV_depth_buffer_float GL_NV_depth_clamp GL_NV_draw_texture GL_NV_ES1_1_compatibility GL_NV_ES3_1_compatibility GL_NV_explicit_multisample GL_NV_fence GL_NV_float_buffer GL_NV_fog_distance GL_NV_fragment_program GL_NV_fragment_program_option GL_NV_fragment_program2 GL_NV_framebuffer_multisample_coverage GL_NV_geometry_shader4 GL_NV_gpu_program4 GL_NV_internalformat_sample_query GL_NV_gpu_program4_1 GL_NV_gpu_program5 GL_NV_gpu_program5_mem_extended GL_NV_gpu_program_fp64 GL_NV_gpu_shader5 GL_NV_half_float GL_NV_light_max_exponent GL_NV_multisample_coverage GL_NV_multisample_filter_hint GL_NV_occlusion_query GL_NV_packed_depth_stencil GL_NV_parameter_buffer_object GL_NV_parameter_buffe
 r_object2 GL_NV_path_rendering GL_NV_pixel_data_range GL_NV_point_sprite GL_NV_primitive_restart GL_NV_query_resource GL_NV_query_resource_tag GL_NV_register_combiners GL_NV_register_combiners2 GL_NV_shader_atomic_counters GL_NV_shader_atomic_float GL_NV_shader_buffer_load GL_NV_shader_storage_buffer_object GL_NV_texgen_reflection GL_NV_texture_barrier GL_NV_texture_compression_vtc GL_NV_texture_env_combine4 GL_NV_texture_multisample GL_NV_texture_rectangle GL_NV_texture_rectangle_compressed GL_NV_texture_shader GL_NV_texture_shader2 GL_NV_texture_shader3 GL_NV_transform_feedback GL_NV_transform_feedback2 GL_NV_uniform_buffer_unified_memory GL_NV_vdpau_interop GL_NV_vertex_array_range GL_NV_vertex_array_range2 GL_NV_vertex_attrib_integer_64bit GL_NV_vertex_buffer_unified_memory GL_NV_vertex_program GL_NV_vertex_program1_1 GL_NV_vertex_program2 GL_NV_vertex_program2_option GL_NV_vertex_program3 GL_NV_video_capture GL_NVX_conditional_render GL_NVX_gpu_memory_info GL_NV_shader_thread_group GL_KHR_blend_equation
 _advanced GL_SGIS_generate_mipmap GL_SGIS_texture_lod GL_SGIX_depth_texture GL_SGIX_shadow GL_SUN_slice_accum
-OPENGL LOG: Creating OpenGL 4.5 graphics device ; Context level  <OpenGL 4.5> ; Context handle 67690136
+OPENGL LOG: Creating OpenGL 4.5 graphics device ; Context level  <OpenGL 4.5> ; Context handle 41033384
 Begin MonoManager ReloadAssembly
-- Completed reload, in  0.045 seconds
+- Completed reload, in  0.042 seconds
 Default vsync count 0
 requesting resize 1024 x 768
 resizing window to 1024 x 768
@@ -30,25 +30,15 @@ Failed setting thread niceness (priority) to 0 due to EACCES (errno 13) violatio
  
 (Filename:  Line: 127)
 
-UnloadTime: 0.634000 ms
+UnloadTime: 0.584000 ms
 Setting up 4 worker threads for Enlighten.
-  Thread -> id: 7f6b00bbc700 -> priority: 1 
-  Thread -> id: 7f6af7ffe700 -> priority: 1 
-  Thread -> id: 7f6af77fd700 -> priority: 1 
-  Thread -> id: 7f6af6ffc700 -> priority: 1 
+  Thread -> id: 7f7d1ca28700 -> priority: 1 
+  Thread -> id: 7f7d13ffe700 -> priority: 1 
+  Thread -> id: 7f7d137fd700 -> priority: 1 
+  Thread -> id: 7f7d12ffc700 -> priority: 1 
 Unloading 5 Unused Serialized files (Serialized files now loaded: 0)
-UnloadTime: 5.314000 ms
+UnloadTime: 5.249000 ms
 
 Unloading 7 unused Assets to reduce memory usage. Loaded Objects now: 2651.
-Total: 1.397000 ms (FindLiveObjects: 0.623000 ms CreateObjectMapping: 0.045000 ms MarkObjects: 0.711000 ms  DeleteObjects: 0.018000 ms)
-
-Unloading 6 Unused Serialized files (Serialized files now loaded: 0)
-UnloadTime: 1.982000 ms
-loading: racePi2
- 
-(Filename: ./Runtime/Export/Debug.bindings.h Line: 43)
-
-
-Unloading 8 unused Assets to reduce memory usage. Loaded Objects now: 1678.
-Total: 1.371000 ms (FindLiveObjects: 0.638000 ms CreateObjectMapping: 0.045000 ms MarkObjects: 0.625000 ms  DeleteObjects: 0.063000 ms)
+Total: 1.269000 ms (FindLiveObjects: 0.634000 ms CreateObjectMapping: 0.027000 ms MarkObjects: 0.592000 ms  DeleteObjects: 0.016000 ms)
 

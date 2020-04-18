@@ -9,9 +9,9 @@ class CvGames(object):
     def __init__(self):
         self.rho = 0.8
         self.theta = np.pi / 180
-        self.threshold = 25
-        self.min_line_len = 5
-        self.max_line_gap = 10
+        self.threshold = 25  # 15
+        self.min_line_len = 5 # 10
+        self.max_line_gap = 10 # 20
         self.img = None
         self.p_img = None
         self.running = True
@@ -20,12 +20,16 @@ class CvGames(object):
     def update(self):
         while self.running:
             if self.img is not None:
-                obs = cv2.cvtColor(self.img, cv2.COLOR_BGR2GRAY)
-                edges = self.detect_edges(obs, low_threshold=50, high_threshold=150)
 
-                hl = self.hough_lines(edges, self.rho, self.theta, self.threshold, self.min_line_len, self.max_line_gap)
+                ysize, xsize = self.img.shape[:2]
 
-                left_lines, right_lines = self.separate_lines(hl)
+                output_image = self.grayscale(self.img)     # apply grayscale
+                output_image = self.remove_noise(output_image, 3)
+                output_image = self.canny(output_image, low_threshold=50, high_threshold=150)  # detect_edges
+
+                lines_image = self.hough_lines(output_image, self.rho, self.theta, self.threshold, self.min_line_len, self.max_line_gap)
+
+                left_lines, right_lines = self.separate_lines(lines_image)
 
                 filtered_right, filtered_left = [], []
                 if len(left_lines):
@@ -41,7 +45,7 @@ class CvGames(object):
                 elif len(filtered_right):
                     lines = np.expand_dims(np.expand_dims(np.array(filtered_right), axis=0), axis=0).tolist()
 
-                ret_img = np.zeros((80, 80))
+                ret_img = np.zeros((ysize, xsize, 3), dtype=np.uint8)
 
                 if len(lines):
                     try:
@@ -52,32 +56,92 @@ class CvGames(object):
                 self.p_img = ret_img
 
     def run_threaded(self,img):
-        # self.running = True
         self.img = img
         if self.p_img is not None:
+            cv2.namedWindow("frame", cv2.WINDOW_NORMAL)
             cv2.imshow('frame', self.p_img)
+            cv2.resizeWindow('frame', 400, 400)
+            # cv2.namedWindow("orginal", cv2.WINDOW_NORMAL)
+            # cv2.imshow('orginal', img)
+            # cv2.resizeWindow('frame', 400, 400)
             cv2.waitKey(1)
         return self.p_img
 
-    def remove_noise(self, image, kernel_size):
+    def remove_noise(self, image, kernel_size = 5):
+        """Applies a Gaussian Noise kernel"""
         return cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
 
-    def discard_colors(self, image):
+    def grayscale(self, image):
         return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    def detect_edges(self, image, low_threshold, high_threshold):
+    def canny(self, image, low_threshold, high_threshold):
+        """Applies the Canny transform"""
         return cv2.Canny(image, low_threshold, high_threshold)
 
     def draw_lines(self, image, lines, color=[255, 0, 0], thickness=2):
+        """
+        NOTE: this is the function you might want to use as a starting point once you want to
+        average/extrapolate the line segments you detect to map out the full
+        extent of the lane (going from the result shown in raw-lines-example.mp4
+        to that shown in P1_example.mp4).
+
+        This function draws `lines` with `color` and `thickness`.
+        Lines are drawn on the image inplace (mutates the image).
+        If you want to make the lines semi-transparent, think about combining
+        this function with the weighted_img() function below
+        """
         for line in lines:
             for x1, y1, x2, y2, slope in line:
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
                 cv2.line(image, (x1, y1), (x2, y2), color, thickness)
 
+    def region_of_interest(self,img, vertices):
+        """
+        Applies an image mask.
+
+        Only keeps the region of the image defined by the polygon
+        formed from `vertices`. The rest of the image is set to black.
+        """
+        # defining a blank mask to start with
+        mask = np.zeros_like(img)
+
+        # defining a 3 channel or 1 channel color to fill the mask with depending on the input image
+        if len(img.shape) > 2:
+            channel_count = img.shape[2]  # i.e. 3 or 4 depending on your image
+            ignore_mask_color = (255,) * channel_count
+        else:
+            ignore_mask_color = 255
+
+        # filling pixels inside the polygon defined by "vertices" with the fill color
+        cv2.fillPoly(mask, vertices, ignore_mask_color)
+
+        # returning the image only where mask pixels are nonzero
+        masked_image = cv2.bitwise_and(img, mask)
+        return masked_image
+
     def hough_lines(self, image, rho, theta, threshold, min_line_len, max_line_gap):
+        """
+        `img` should be the output of a Canny transform.
+        The Hough Line Transform is a transform used to detect straight lines.
+        Returns an image with hough lines drawn.
+        """
         lines = cv2.HoughLinesP(image, rho, theta, threshold, np.array([]), minLineLength=min_line_len,
                                 maxLineGap=max_line_gap)
         return lines
+
+    def weighted_img(self,img, initial_img, α=0.7, β=1., γ=0.):
+        """
+        `img` is the output of the hough_lines(), An image with lines drawn on it.
+        Should be a blank image (all black) with lines drawn on it.
+
+        `initial_img` should be the image before any processing.
+
+        The result image is computed as follows:
+
+        initial_img * α + img * β + γ
+        NOTE: initial_img and img must be the same shape!
+        """
+        return cv2.addWeighted(initial_img, α, img, β, γ)
 
     def slope(self, x1, y1, x2, y2):
         try:
@@ -119,3 +183,4 @@ class CvGames(object):
         self.running = False
         cv2.destroyAllWindows()
         time.sleep(0.2)
+
