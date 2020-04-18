@@ -45,15 +45,16 @@ class CvGames(object):
                 elif len(filtered_right):
                     lines = np.expand_dims(np.expand_dims(np.array(filtered_right), axis=0), axis=0).tolist()
 
-                ret_img = np.zeros((ysize, xsize, 3), dtype=np.uint8)
+                lines_image = np.zeros((ysize, xsize, 3), dtype=np.uint8)
 
                 if len(lines):
                     try:
-                        self.draw_lines(ret_img, lines, thickness=1)
+                        self.draw_lines(lines_image, lines, thickness=1)
+                        final_image = self.combine(lines_image, self.img)
                     except:
                         pass
 
-                self.p_img = ret_img
+                self.p_img = final_image
 
     def run_threaded(self,img):
         self.img = img
@@ -78,7 +79,7 @@ class CvGames(object):
         """Applies the Canny transform"""
         return cv2.Canny(image, low_threshold, high_threshold)
 
-    def draw_lines(self, image, lines, color=[255, 0, 0], thickness=2):
+    def draw_lines(self, image, lines, color=[0, 255, 0], thickness=2):
         """
         NOTE: this is the function you might want to use as a starting point once you want to
         average/extrapolate the line segments you detect to map out the full
@@ -90,6 +91,8 @@ class CvGames(object):
         If you want to make the lines semi-transparent, think about combining
         this function with the weighted_img() function below
         """
+        # lines = self.extrapolate_lines(image, lines)
+
         for line in lines:
             for x1, y1, x2, y2, slope in line:
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
@@ -129,9 +132,9 @@ class CvGames(object):
                                 maxLineGap=max_line_gap)
         return lines
 
-    def weighted_img(self,img, initial_img, α=0.7, β=1., γ=0.):
+    def combine(self,img, initial_img, α=0.7, β=1., γ=0.0):
         """
-        `img` is the output of the hough_lines(), An image with lines drawn on it.
+        `img` is An image with lines drawn on it.
         Should be a blank image (all black) with lines drawn on it.
 
         `initial_img` should be the image before any processing.
@@ -178,6 +181,47 @@ class CvGames(object):
         x = x2 + (x2 - x1) / line_len * length
         y = y2 + (y2 - y1) / line_len * length
         return x, y
+
+    def lines_linear_regression(self,lines_array):
+        x = np.reshape(lines_array[:, [0, 2]], (1, len(lines_array) * 2))[0]
+        y = np.reshape(lines_array[:, [1, 3]], (1, len(lines_array) * 2))[0]
+        A = np.vstack([x, np.ones(len(x))]).T
+        m, c = np.linalg.lstsq(A, y, rcond=None)[0]  # Solves the equation a x = b
+        x = np.array(x)
+        y = np.array(x * m + c)
+        return x, y, m, c
+
+    def compute_lane(self,img, lines):
+        if len(lines) == 0:
+            return None
+
+        x, y, m, c = self.lines_linear_regression(lines)
+
+        y1 = int(img.shape[0] / 2)
+        x1 = int((y1 - c) / m)
+        y2 = int(img.shape[0])
+        x2 = int((y2 - c) / m)
+
+        x1e, y1e = self.extend_point(x1, y1, x2, y2, -1000)  # bottom point
+        x2e, y2e = self.extend_point(x1, y1, x2, y2, 1000)  # top point
+
+        lane = np.array([x2e, y2e, x1e, y1e], dtype=np.int32)
+        return lane
+
+    def extrapolate_lines(self,img, lines):
+        right_lines, left_lines = self.separate_lines(lines)
+
+        if len(right_lines) == 0 or len(left_lines) == 0:
+            return
+
+        right = self.reject_outliers(right_lines, cutoff=(0.45, 0.75))
+        left = self.reject_outliers(left_lines, cutoff=(-1.1, -0.2))
+
+        right_lane = self.compute_lane(img, right)
+        left_lane = self.compute_lane(img, left)
+
+        lines = np.array([np.array([right_lane]), np.array([left_lane])])
+        return lines
 
     def shutdown(self):
         self.running = False
