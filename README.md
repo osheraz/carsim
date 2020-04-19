@@ -23,11 +23,8 @@ Notice that I do have the Windows executable available for download. If you are 
 
 First, we have to install `donkey_gym` python package, which extends the OpenAI gym class to allow RL developers to interact with Donkey environment using the familiar OpenAI gym like interface. 
 
-To install the package, navigate to `todo` folder and type the follow command:
-```
-$ cd donkey_rl/src/donkey_gym
-$ pip install -e .
-```
+To install the package, do the following guide:
+Linux: [donkey install](https://docs.donkeycar.com/guide/install_software/)
 
 Notice that by default a Unity GUI will be launched where you can see the Donkey car being trained. If you want to train in headless mode (i.e. no GUI), you can edit `donkey_rl/src/donkey_gym/donkey_gym/envs/donkey_env.py`and set `headless` flag to `True`.
 
