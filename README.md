@@ -6,6 +6,7 @@ Teleoperation of a Mobile robot under communication delays using donkeycar layou
 [Donkey Car](http://www.donkeycar.com) is an open source DIY self driving platform for small scale RC cars. You can interact with the Donkey environment using the familiar OpenAI gym like interface. The code was modified from [Tawn Kramer sdsandbox repo](https://github.com/tawnkramer/sdsandbox).
 
 <img src="https://flyyufelix.github.io/img/ddqn_demo.gif" width="500">
+<img src="https://i.imgur.com/6tU0elU.png" width="500">
 
 ## Usage
 
