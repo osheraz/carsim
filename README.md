@@ -11,13 +11,11 @@ Teleoperation of a Mobile robot under communication delays using donkeycar layou
 ## Usage
 
 ### Download Donkey Unity Environment
-The Donkey Car simulator is created with Unity. There are 3 Unity scenes available (created by Tawn Kramer) for training now, which are generated roads, warehouse, and Sparkfun AVC. Before we run the RL training script, we have to either build the Donkey Car Unity environment ourselves (need to install Unity) or download the pre-built environment executables below:
+The Donkey Car simulator is created with Unity. There are 3 Unity scenes available (created by Tawn Kramer) for training now, which are generated roads, warehouse, and Sparkfun AVC. We have to either build the Donkey Car Unity environment ourselves (need to install Unity) or download the pre-built environment executables below:
 
 Linux: [donkey.x86_64](https://drive.google.com/file/d/1p5Sn27o7YJC2SUBatCfUSlt9t-8xatDw/view?usp=sharing) | MacOS: [donkey.app](https://drive.google.com/drive/folders/1qfFkxlBy-nST3qcJzSQboVpIquzPHmsL?usp=sharing)
 
-Then place the executable inside the `donkey_rl/src` folder. 
-
-Alternatively, if you wish to build the Donkey Unity environment yourself. You need to first download [Unity](https://store.unity.com/). You can find the Donkey Unity project at `donkey_rl/sdsim`. 
+Then place the executable inside the `carsim` folder. 
 
 Notice that I do have the Windows executable available for download. If you are Windows users, please go ahead and build the environment yourself.
 
@@ -25,7 +23,7 @@ Notice that I do have the Windows executable available for download. If you are 
 
 First, we have to install `donkey_gym` python package, which extends the OpenAI gym class to allow RL developers to interact with Donkey environment using the familiar OpenAI gym like interface. 
 
-To install the package, navigate to `donkey_rl/src/donkey_gym` folder and type the follow command:
+To install the package, navigate to `todo` folder and type the follow command:
 ```
 $ cd donkey_rl/src/donkey_gym
 $ pip install -e .
