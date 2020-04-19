@@ -393,7 +393,6 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
     
     #Choose what inputs should change the car.
 
-######################################## drive mode #####################################
     class DriveMode:
         def run(self, mode, 
                     user_angle, user_throttle,
