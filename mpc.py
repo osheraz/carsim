@@ -551,8 +551,8 @@ def get_forward_course(dl):
 
 
 def get_switch_back_course(dl):
-    ax = [0.0, 30.0, 6.0, 20.0, 35.0]
-    ay = [0.0, 0.0, 20.0, 35.0, 20.0]
+    ax = [0.0, 30.0, 50.0, 20.0, 35.0]
+    ay = [0.0, 0.0, 20.0, 35.0, 10.0]
     cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
         ax, ay, ds=dl)
     ax = [35.0, 10.0, 0.0, 0.0]
