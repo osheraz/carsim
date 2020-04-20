@@ -26,8 +26,6 @@ First, we have to install `donkey_gym` python package, which extends the OpenAI 
 To install the package, do the following guide:
 Linux: [donkey install](https://docs.donkeycar.com/guide/install_software/)
 
-Notice that by default a Unity GUI will be launched where you can see the Donkey car being trained. If you want to train in headless mode (i.e. no GUI), you can edit `donkey_rl/src/donkey_gym/donkey_gym/envs/donkey_env.py`and set `headless` flag to `True`.
-
 ## Dependencies
 
 * [python 3.4+ 64 bit](https://www.python.org/)
