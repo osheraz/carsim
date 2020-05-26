@@ -27,7 +27,7 @@ class CvGames(object):
                 output_image = self.remove_noise(output_image, 3)
                 output_image = self.canny(output_image, low_threshold=50, high_threshold=150)  # detect_edges
 
-                lines_image = self.hough_lines(output_image, self.rho, self.theta, self.threshold, self.min_line_len, self.max_line_gap)
+                lines_image = self.hough_lines(output_image, self.rho, self.theta, self.threshold, self.min_line_len, self.max_line_gap) # 3D for some reason
 
                 left_lines, right_lines = self.separate_lines(lines_image)
 
@@ -45,11 +45,19 @@ class CvGames(object):
                 elif len(filtered_right):
                     lines = np.expand_dims(np.expand_dims(np.array(filtered_right), axis=0), axis=0).tolist()
 
+                mid = [(filtered_left[0] + filtered_right[0]) / 2,
+                       (filtered_left[1] + filtered_right[1]) / 2,
+                       (filtered_left[2] + filtered_right[2]) / 2,
+                       (filtered_left[3] + filtered_right[3]) / 2,
+                       (filtered_left[4] + filtered_right[4]) / 2,]
+                mid = np.expand_dims(np.expand_dims(np.array(mid), axis=0), axis=0).tolist()
+
                 lines_image = np.zeros((ysize, xsize, 3), dtype=np.uint8)
 
                 if len(lines):
                     try:
                         self.draw_lines(lines_image, lines, thickness=1)
+                        self.draw_lines(lines_image, mid, thickness=1)
                         final_image = self.combine(lines_image, self.img)
                     except:
                         pass
@@ -190,38 +198,6 @@ class CvGames(object):
         x = np.array(x)
         y = np.array(x * m + c)
         return x, y, m, c
-
-    def compute_lane(self,img, lines):
-        if len(lines) == 0:
-            return None
-
-        x, y, m, c = self.lines_linear_regression(lines)
-
-        y1 = int(img.shape[0] / 2)
-        x1 = int((y1 - c) / m)
-        y2 = int(img.shape[0])
-        x2 = int((y2 - c) / m)
-
-        x1e, y1e = self.extend_point(x1, y1, x2, y2, -1000)  # bottom point
-        x2e, y2e = self.extend_point(x1, y1, x2, y2, 1000)  # top point
-
-        lane = np.array([x2e, y2e, x1e, y1e], dtype=np.int32)
-        return lane
-
-    def extrapolate_lines(self,img, lines):
-        right_lines, left_lines = self.separate_lines(lines)
-
-        if len(right_lines) == 0 or len(left_lines) == 0:
-            return
-
-        right = self.reject_outliers(right_lines, cutoff=(0.45, 0.75))
-        left = self.reject_outliers(left_lines, cutoff=(-1.1, -0.2))
-
-        right_lane = self.compute_lane(img, right)
-        left_lane = self.compute_lane(img, left)
-
-        lines = np.array([np.array([right_lane]), np.array([left_lane])])
-        return lines
 
     def shutdown(self):
         self.running = False

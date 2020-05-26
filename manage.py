@@ -28,9 +28,10 @@ from donkeycar.parts.controller import LocalWebController, JoystickController
 from donkeycar.parts.throttle_filter import ThrottleFilter
 from donkeycar.parts.behavior import BehaviorPart
 from donkeycar.parts.file_watcher import FileWatcher
-from donkeycar.parts.launch import AiLaunch
 from donkeycar.utils import *
 from cvgames import CvGames
+from scipy.interpolate import splprep, splev
+
 
 def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type='single', meta=[] ):
     '''
@@ -115,7 +116,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
             from donkeycar.parts.camera import MockCamera
             cam = MockCamera(image_w=cfg.IMAGE_W, image_h=cfg.IMAGE_H, image_d=cfg.IMAGE_DEPTH)
         else:
-            raise(Exception("Unkown camera type: %s" % cfg.CAMERA_TYPE))
+            raise(Exception("Unknown camera type: %s" % cfg.CAMERA_TYPE))
             
         V.add(cam, inputs=inputs, outputs=['cam/image_array'], threaded=threaded)
 
@@ -300,7 +301,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         except:
             pass
 
-        inputs = [inf_input, "behavior/one_hot_state_array"]  
+        inputs = [inf_input, "behavior/one_hot_state_array"]
     #IMU
     elif model_type == "imu":
         assert(cfg.HAVE_IMU)
@@ -367,7 +368,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
             def reload_weights(filename):
                 weights_path = filename.replace('.json', '.weights')
                 load_weights(kl, weights_path)
-            
+
             model_reload_cb = reload_weights
 
         else:
@@ -386,14 +387,12 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
 
         if cfg.TRAIN_LOCALIZER:
             outputs.append("pilot/loc")
-    
-        V.add(kl, inputs=inputs, 
-            outputs=outputs,
-            run_condition='run_pilot')            
-    
-    #Choose what inputs should change the car.
 
-######################################## drive mode #####################################
+        V.add(kl, inputs=inputs,
+            outputs=outputs,
+            run_condition='run_pilot')
+
+    #Choose what inputs should change the car.
     class DriveMode:
         def run(self, mode, 
                     user_angle, user_throttle,
@@ -412,13 +411,6 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
                   'pilot/angle', 'pilot/throttle'], 
           outputs=['angle', 'throttle'])
 
-    
-    #to give the car a boost when starting ai mode in a race.
-    aiLauncher = AiLaunch(cfg.AI_LAUNCH_DURATION, cfg.AI_LAUNCH_THROTTLE, cfg.AI_LAUNCH_KEEP_ENABLED)
-    
-    V.add(aiLauncher,
-        inputs=['user/mode', 'throttle'],
-        outputs=['throttle'])
 
     if isinstance(ctr, JoystickController):
         ctr.set_button_down_trigger(cfg.AI_LAUNCH_ENABLE_BUTTON, aiLauncher.enable_ai_launch)
@@ -580,7 +572,7 @@ if __name__ == '__main__':
     camera_type = args['--camera']
     drive(cfg, model_path=args['--model'], use_joystick=args['--js'], model_type=model_type, camera_type=camera_type,
         meta=args['--meta'])
-    
+
     # if args['train']:
     #     from train import multi_train, preprocessFileList
     #

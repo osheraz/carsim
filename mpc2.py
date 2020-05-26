@@ -1,12 +1,21 @@
 
 from scipy.optimize import minimize
-# from scipy.interpolate import splprep, splev
 import sympy as sym
 from sympy.tensor.array import derive_by_array
+import sys
+import os
+import argparse
+import logging
+import random
+import time
+import pandas as pd
+from scipy.interpolate import splprep, splev
+
 sym.init_printing()
 
 from abc import ABCMeta, abstractmethod
 import numpy as np
+
 
 # MPC-RELATED
 # Constraints for MPC
@@ -54,16 +63,16 @@ class MPCController(Controller):
         self.dt = dt
 
         # Cost function coefficients
-        self.cte_coeff = 100 # 100
-        self.epsi_coeff = 100 # 100
+        self.cte_coeff = 100 # 100 cross-track-error coefficient
+        self.epsi_coeff = 100 # 100 orientation-error coefficient
         self.speed_coeff = 0.4  # 0.2
         self.acc_coeff = 1  # 1
         self.steer_coeff = 0.1  # 0.1
-        self.consec_acc_coeff = 50
+        self.consec_acc_coeff = 50  # Penalty for differences in consecutive actuators
         self.consec_steer_coeff = 50
 
         # Front wheel L
-        self.Lf = 2.5  # TODO: check if true
+        self.Lf = 0.2  # TODO: Edit to real distance between wheels
 
         # How the polynomial fitting the desired curve is fitted
         self.steps_poly = 30
@@ -114,7 +123,7 @@ class MPCController(Controller):
         cte = self.create_array_of_symbols('cte', self.steps_ahead)
         eψ = self.create_array_of_symbols('eψ', self.steps_ahead)
 
-        # Actuators
+        # Actuators (Output commands)
         a = self.create_array_of_symbols('a', self.steps_ahead)
         δ = self.create_array_of_symbols('δ', self.steps_ahead)
 
@@ -128,6 +137,7 @@ class MPCController(Controller):
 
         cost = 0
         for t in range(self.steps_ahead):
+            # Sum the cost of all parameters over the trajectory t[0->steps_ahead]
             cost += (
                 # Reference state penalties
                 self.cte_coeff * cte[t]**2
@@ -147,7 +157,7 @@ class MPCController(Controller):
             )
 
         # Initialize constraints
-        eq_constr = _EqualityConstraints(self.steps_ahead, self.state_vars)
+        eq_constr = _EqualityConstraints(self.steps_ahead, self.state_vars) # Init replay buffer
         eq_constr['x'][0] = x[0] - x_init
         eq_constr['y'][0] = y[0] - y_init
         eq_constr['ψ'][0] = ψ[0] - ψ_init
@@ -157,8 +167,8 @@ class MPCController(Controller):
 
         for t in range(1, self.steps_ahead):
             curve = sum(poly[-(i+1)] * x[t-1]**i for i in range(len(poly)))
-            # The desired ψ is equal to the derivative of the polynomial curve at
-            #  point x[t-1]
+            # poly[3] + poly[2]*x + poly[1]*x^2 + poly[0]*x^3
+            # The desired ψ is equal to the derivative of the polynomial curve at point x[t-1]
             ψdes = sum(poly[-(i+1)] * i*x[t-1]**(i-1) for i in range(1, len(poly)))
 
             eq_constr['x'][t] = x[t] - (x[t-1] + v[t-1] * sym.cos(ψ[t-1]) * self.dt)
@@ -184,23 +194,23 @@ class MPCController(Controller):
         return cost_func, cost_grad_func, constr_funcs
 
 
-    def control(self, pts_2D, measurements, depth_array):
-        which_closest, _, location = self._calc_closest_dists_and_location(
+    def control(self, pts_2D, measurements):
+        which_closest_i, _, location = self._calc_closest_dists_and_location(
             measurements,
             pts_2D
-        )
+        )  # function that return the forward trajectory from the lane detection system
 
         # Stabilizes polynomial fitting
-        which_closest_shifted = which_closest - 5
+        which_closest_shifted = which_closest_i - 5
         # NOTE: `which_closest_shifted` might become < 0, but the modulo operation below fixes that
 
         indeces = which_closest_shifted + self.steps_poly*np.arange(self.poly_degree+1)
         indeces = indeces % pts_2D.shape[0]
         pts = pts_2D[indeces]
 
-        orient = measurements.player_measurements.transform.orientation
-        v = measurements.player_measurements.forward_speed * 3.6 # km / h
-        ψ = np.arctan2(orient.y, orient.x)
+        orient = orientation() # current orientation TODO: add function to read from simulation
+        v = forward_speed() * 3.6 # current forward speed
+        ψ = np.arctan2(orient.y, orient.x) # current heading
 
         cos_ψ = np.cos(ψ)
         sin_ψ = np.sin(ψ)
@@ -239,7 +249,7 @@ class MPCController(Controller):
             'psi': ψ,
             'cte': cte,
             'epsi': eψ,
-            'which_closest': which_closest,
+            'which_closest': which_closest_i,
         }
         for i, coeff in enumerate(poly):
             one_log_dict['poly{}'.format(i)] = coeff
@@ -324,3 +334,40 @@ class MPCController(Controller):
         pts_car[:, 0] = cos_ψ * diff[:, 0] + sin_ψ * diff[:, 1]
         pts_car[:, 1] = sin_ψ * diff[:, 0] - cos_ψ * diff[:, 1]
         return pts_car
+
+
+class MPC():
+    '''
+    A MPC part for donkeycar control
+    '''
+
+    def __init__(self):
+        self.target_speed = 1 # can ben change to any desired speed (also non-constant)
+        self.action = [0.0, 0.0]
+        self.running = True
+        self.state = { 'pos' : (0., 0., 0.)}
+        self.track_DF = pd.read_csv('racetrack.txt', header=None) # check if need to rescale
+        self.pts_2D = self.track_DF.loc[:, [0, 1]].values
+        self.pts_2D = self.convert_track()
+
+        self.controller = MPCController(self.target_speed)
+
+    def convert_track(self):
+        tck, u = splprep(self.pts_2D.T, u=None, s=2.0, per=1, k=3)
+        u_new = np.linspace(u.min(), u.max(), 100)
+        x_new, y_new = splev(u_new, tck, der=0)
+        pts_2D = np.c_[x_new, y_new]
+
+    def run(self,state):
+        curr_closest_waypoint = None
+        prev_closest_waypoint = None
+        num_waypoints = self.pts_2D.shape[0]
+
+        one_log_dict = self.controller.control(self.pts_2D,  state,) # calc the control command for a given state
+        prev_closest_waypoint = curr_closest_waypoint
+        curr_closest_waypoint = one_log_dict['which_closest']
+
+        self.action= one_log_dict['steer'], one_log_dict['throttle']
+
+        return self.action
+
