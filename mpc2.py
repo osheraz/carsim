@@ -1,4 +1,3 @@
-
 from scipy.optimize import minimize
 import sympy as sym
 from sympy.tensor.array import derive_by_array
@@ -16,12 +15,11 @@ sym.init_printing()
 from abc import ABCMeta, abstractmethod
 import numpy as np
 
-
 # MPC-RELATED
 # Constraints for MPC
 STEER_BOUND = 1.0
 STEER_BOUNDS = (-STEER_BOUND, STEER_BOUND)
-THROTTLE_BOUND = 1.0
+THROTTLE_BOUND = 0.1
 THROTTLE_BOUNDS = (0, THROTTLE_BOUND)
 
 class Controller(metaclass=ABCMeta):
@@ -30,14 +28,12 @@ class Controller(metaclass=ABCMeta):
         pass
 
     @staticmethod
-    def _calc_closest_dists_and_location(measurements, pts_2D):
-        location = np.array([
-            measurements.player_measurements.transform.location.x,
-            measurements.player_measurements.transform.location.y,
-        ])
+    def _calc_closest_dists_and_location(measurements, pts_2D): # state , track
+        location = np.array(measurements['pos'])[:2] # x, y
         dists = np.linalg.norm(pts_2D - location, axis=1)
         which_closest = np.argmin(dists)
         return which_closest, dists, location
+
 
 class _EqualityConstraints(object):
     """Class for storing equality constraints in the MPC."""
@@ -45,7 +41,7 @@ class _EqualityConstraints(object):
     def __init__(self, N, state_vars):
         self.dict = {}
         for symbol in state_vars:
-            self.dict[symbol] = N*[None]
+            self.dict[symbol] = N * [None]
 
     def __getitem__(self, key):
         return self.dict[key]
@@ -55,6 +51,7 @@ class _EqualityConstraints(object):
 
 
 class MPCController(Controller):
+
     def __init__(self, target_speed, steps_ahead=10, dt=0.1):
         self.target_speed = target_speed
         self.state_vars = ('x', 'y', 'v', 'ψ', 'cte', 'eψ')
@@ -63,8 +60,8 @@ class MPCController(Controller):
         self.dt = dt
 
         # Cost function coefficients
-        self.cte_coeff = 100 # 100 cross-track-error coefficient
-        self.epsi_coeff = 100 # 100 orientation-error coefficient
+        self.cte_coeff = 100  # 100 cross-track-error coefficient
+        self.epsi_coeff = 100  # 100 orientation-error coefficient
         self.speed_coeff = 0.4  # 0.2
         self.acc_coeff = 1  # 1
         self.steer_coeff = 0.1  # 0.1
@@ -72,7 +69,7 @@ class MPCController(Controller):
         self.consec_steer_coeff = 50
 
         # Front wheel L
-        self.Lf = 0.2  # TODO: Edit to real distance between wheels
+        self.Lf = 0.1  # TODO: Edit to real distance between wheels
 
         # How the polynomial fitting the desired curve is fitted
         self.steps_poly = 30
@@ -80,14 +77,14 @@ class MPCController(Controller):
 
         # Bounds for the optimizer
         self.bounds = (
-            6*self.steps_ahead * [(None, None)]
-            + self.steps_ahead * [THROTTLE_BOUNDS]
-            + self.steps_ahead * [STEER_BOUNDS]
+                6 * self.steps_ahead * [(None, None)]
+                + self.steps_ahead * [THROTTLE_BOUNDS]
+                + self.steps_ahead * [STEER_BOUNDS]
         )
 
         # State 0 placeholder
         num_vars = (len(self.state_vars) + 2)  # State variables and two actuators
-        self.state0 = np.zeros(self.steps_ahead*num_vars)
+        self.state0 = np.zeros(self.steps_ahead * num_vars)
 
         # Lambdify and minimize stuff
         self.evaluator = 'numpy'
@@ -95,15 +92,15 @@ class MPCController(Controller):
         self.cost_func, self.cost_grad_func, self.constr_funcs = self.get_func_constraints_and_bounds()
 
         # To keep the previous state
-        self.steer = None
-        self.throttle = None
+        self.steer = 0.0
+        self.throttle = 0.0
 
     def get_func_constraints_and_bounds(self):
         """The most important method of this class, defining the MPC's cost
         function and constraints.
         """
         # Polynomial coefficients will also be symbolic variables
-        poly = self.create_array_of_symbols('poly', self.poly_degree+1)
+        poly = self.create_array_of_symbols('poly', self.poly_degree + 1)
 
         # Initialize the initial state
         x_init = sym.symbols('x_init')
@@ -140,24 +137,24 @@ class MPCController(Controller):
             # Sum the cost of all parameters over the trajectory t[0->steps_ahead]
             cost += (
                 # Reference state penalties
-                self.cte_coeff * cte[t]**2
-                + self.epsi_coeff * eψ[t]**2 +
-                + self.speed_coeff * (v[t] - self.target_speed)**2
+                    self.cte_coeff * cte[t] ** 2
+                    + self.epsi_coeff * eψ[t] ** 2 +
+                    + self.speed_coeff * (v[t] - self.target_speed) ** 2
 
-                # # Actuator penalties
-                + self.acc_coeff * a[t]**2
-                + self.steer_coeff * δ[t]**2
+                    # # Actuator penalties
+                    + self.acc_coeff * a[t] ** 2
+                    + self.steer_coeff * δ[t] ** 2
             )
 
         # Penalty for differences in consecutive actuators
-        for t in range(self.steps_ahead-1):
+        for t in range(self.steps_ahead - 1):
             cost += (
-                self.consec_acc_coeff * (a[t+1] - a[t])**2
-                + self.consec_steer_coeff * (δ[t+1] - δ[t])**2
+                    self.consec_acc_coeff * (a[t + 1] - a[t]) ** 2
+                    + self.consec_steer_coeff * (δ[t + 1] - δ[t]) ** 2
             )
 
         # Initialize constraints
-        eq_constr = _EqualityConstraints(self.steps_ahead, self.state_vars) # Init replay buffer
+        eq_constr = _EqualityConstraints(self.steps_ahead, self.state_vars)  # Init replay buffer
         eq_constr['x'][0] = x[0] - x_init
         eq_constr['y'][0] = y[0] - y_init
         eq_constr['ψ'][0] = ψ[0] - ψ_init
@@ -166,17 +163,17 @@ class MPCController(Controller):
         eq_constr['eψ'][0] = eψ[0] - eψ_init
 
         for t in range(1, self.steps_ahead):
-            curve = sum(poly[-(i+1)] * x[t-1]**i for i in range(len(poly)))
+            curve = sum(poly[-(i + 1)] * x[t - 1] ** i for i in range(len(poly)))
             # poly[3] + poly[2]*x + poly[1]*x^2 + poly[0]*x^3
             # The desired ψ is equal to the derivative of the polynomial curve at point x[t-1]
-            ψdes = sum(poly[-(i+1)] * i*x[t-1]**(i-1) for i in range(1, len(poly)))
+            ψdes = sum(poly[-(i + 1)] * i * x[t - 1] ** (i - 1) for i in range(1, len(poly)))
 
-            eq_constr['x'][t] = x[t] - (x[t-1] + v[t-1] * sym.cos(ψ[t-1]) * self.dt)
-            eq_constr['y'][t] = y[t] - (y[t-1] + v[t-1] * sym.sin(ψ[t-1]) * self.dt)
-            eq_constr['ψ'][t] = ψ[t] - (ψ[t-1] - v[t-1] * δ[t-1] / self.Lf * self.dt)
-            eq_constr['v'][t] = v[t] - (v[t-1] + a[t-1] * self.dt)
-            eq_constr['cte'][t] = cte[t] - (curve - y[t-1] + v[t-1] * sym.sin(eψ[t-1]) * self.dt)
-            eq_constr['eψ'][t] = eψ[t] - (ψ[t-1] - ψdes - v[t-1] * δ[t-1] / self.Lf * self.dt)
+            eq_constr['x'][t] = x[t] - (x[t - 1] + v[t - 1] * sym.cos(ψ[t - 1]) * self.dt)
+            eq_constr['y'][t] = y[t] - (y[t - 1] + v[t - 1] * sym.sin(ψ[t - 1]) * self.dt)
+            eq_constr['ψ'][t] = ψ[t] - (ψ[t - 1] - v[t - 1] * δ[t - 1] / self.Lf * self.dt)
+            eq_constr['v'][t] = v[t] - (v[t - 1] + a[t - 1] * self.dt)
+            eq_constr['cte'][t] = cte[t] - (curve - y[t - 1] + v[t - 1] * sym.sin(eψ[t - 1]) * self.dt)
+            eq_constr['eψ'][t] = eψ[t] - (ψ[t - 1] - ψdes - v[t - 1] * δ[t - 1] / self.Lf * self.dt)
 
         # Generate actual functions from
         cost_func = self.generate_fun(cost, vars_, init, poly)
@@ -193,8 +190,7 @@ class MPCController(Controller):
 
         return cost_func, cost_grad_func, constr_funcs
 
-
-    def control(self, pts_2D, measurements):
+    def control(self, pts_2D, measurements):  # Track , curr_position
         which_closest_i, _, location = self._calc_closest_dists_and_location(
             measurements,
             pts_2D
@@ -204,18 +200,20 @@ class MPCController(Controller):
         which_closest_shifted = which_closest_i - 5
         # NOTE: `which_closest_shifted` might become < 0, but the modulo operation below fixes that
 
-        indeces = which_closest_shifted + self.steps_poly*np.arange(self.poly_degree+1)
+        indeces = which_closest_shifted + self.steps_poly * np.arange(self.poly_degree + 1)
         indeces = indeces % pts_2D.shape[0]
         pts = pts_2D[indeces]
 
-        orient = orientation() # current orientation TODO: add function to read from simulation
-        v = forward_speed() * 3.6 # current forward speed
-        ψ = np.arctan2(orient.y, orient.x) # current heading
+        # TODO: NEED TO VERIFY IF STATE IS W.R.T CURR_POSE OR ORIGIN
+        cte_sim =measurements['cte']
+        v = measurements['pos'][2]   # current forward speed
+        ψ = np.arctan2(measurements['pos'][1], measurements['pos'][0])  # current heading
 
         cos_ψ = np.cos(ψ)
         sin_ψ = np.sin(ψ)
 
         x, y = location[0], location[1]
+
         pts_car = MPCController.transform_into_cars_coordinate_system(pts, x, y, cos_ψ, sin_ψ)
 
         poly = np.polyfit(pts_car[:, 0], pts_car[:, 1], self.poly_degree)
@@ -234,15 +232,13 @@ class MPCController(Controller):
 
         if 'success' in result.message:
             self.steer = result.x[-self.steps_ahead]
-            self.throttle = result.x[-2*self.steps_ahead]
+            self.throttle = result.x[-2 * self.steps_ahead]
         else:
             print('Unsuccessful optimization')
 
         one_log_dict = {
             'x': x,
             'y': y,
-            'orient_x': orient.x,
-            'orient_y': orient.y,
             'steer': self.steer,
             'throttle': self.throttle,
             'speed': v,
@@ -251,12 +247,12 @@ class MPCController(Controller):
             'epsi': eψ,
             'which_closest': which_closest_i,
         }
-        for i, coeff in enumerate(poly):
-            one_log_dict['poly{}'.format(i)] = coeff
+        # for i, coeff in enumerate(poly):
+        #     one_log_dict['poly{}'.format(i)] = coeff
 
-        for i in range(pts_car.shape[0]):
-            for j in range(pts_car.shape[1]):
-                one_log_dict['pts_car_{}_{}'.format(i, j)] = pts_car[i][j]
+        # for i in range(pts_car.shape[0]):
+        #     for j in range(pts_car.shape[1]):
+        #         one_log_dict['pts_car_{}_{}'.format(i, j)] = pts_car[i][j]
 
         return one_log_dict
 
@@ -271,13 +267,13 @@ class MPCController(Controller):
         psi = 0
 
         self.state0[:self.steps_ahead] = x
-        self.state0[self.steps_ahead:2*self.steps_ahead] = y
-        self.state0[2*self.steps_ahead:3*self.steps_ahead] = psi
-        self.state0[3*self.steps_ahead:4*self.steps_ahead] = v
-        self.state0[4*self.steps_ahead:5*self.steps_ahead] = cte
-        self.state0[5*self.steps_ahead:6*self.steps_ahead] = epsi
-        self.state0[6*self.steps_ahead:7*self.steps_ahead] = a
-        self.state0[7*self.steps_ahead:8*self.steps_ahead] = delta
+        self.state0[self.steps_ahead:2 * self.steps_ahead] = y
+        self.state0[2 * self.steps_ahead:3 * self.steps_ahead] = psi
+        self.state0[3 * self.steps_ahead:4 * self.steps_ahead] = v
+        self.state0[4 * self.steps_ahead:5 * self.steps_ahead] = cte
+        self.state0[5 * self.steps_ahead:6 * self.steps_ahead] = epsi
+        self.state0[6 * self.steps_ahead:7 * self.steps_ahead] = a
+        self.state0[7 * self.steps_ahead:8 * self.steps_ahead] = delta
         return self.state0
 
     def generate_fun(self, symb_fun, vars_, init, poly):
@@ -295,7 +291,7 @@ class MPCController(Controller):
         args = init + poly
         return sym.lambdify(
             (vars_, *args),
-            derive_by_array(symb_fun, vars_+args)[:len(vars_)],
+            derive_by_array(symb_fun, vars_ + args)[:len(vars_)],
             self.evaluator
         )
         # Equivalent to (but faster than):
@@ -335,20 +331,26 @@ class MPCController(Controller):
         pts_car[:, 1] = sin_ψ * diff[:, 0] - cos_ψ * diff[:, 1]
         return pts_car
 
-
-class MPC():
+class MPC_Part():
     '''
     A MPC part for donkeycar control
     '''
 
-    def __init__(self):
-        self.target_speed = 1 # can ben change to any desired speed (also non-constant)
-        self.action = [0.0, 0.0]
+    def __init__(self, mode='user'):
+        self.target_speed = 0.1  # can ben change to any desired speed (also non-constant)
+        self.action = [0.0, 0.0]  # [ steering , thorttle]
         self.running = True
-        self.state = { 'pos' : (0., 0., 0.)}
-        self.track_DF = pd.read_csv('racetrack.txt', header=None) # check if need to rescale
-        self.pts_2D = self.track_DF.loc[:, [0, 1]].values
-        self.pts_2D = self.convert_track()
+        self.state = {'pos': (0., 0., 0.)} # x , y ,v
+        self.state_vars = ('x', 'y', 'v', 'ψ', 'cte', 'eψ')
+        self.mode = mode
+        self.recording = False
+        self.angle = 0.0
+        self.throttle = 0.0
+        self.track_DF = pd.read_csv('racetrack.txt', header=None)  # check if need to rescale
+        self.pts_2D = self.track_DF.loc[:, [0, 1]].values - self.track_DF.loc[0, [0, 1]].values  # [ x , y ]
+
+
+        # self.pts_2D = self.convert_track()
 
         self.controller = MPCController(self.target_speed)
 
@@ -358,16 +360,16 @@ class MPC():
         x_new, y_new = splev(u_new, tck, der=0)
         pts_2D = np.c_[x_new, y_new]
 
-    def run(self,state):
+    def run(self, state):
+        self.state = state
         curr_closest_waypoint = None
         prev_closest_waypoint = None
         num_waypoints = self.pts_2D.shape[0]
 
-        one_log_dict = self.controller.control(self.pts_2D,  state,) # calc the control command for a given state
+        one_log_dict = self.controller.control(self.pts_2D, state, )  # calc the control command for a given state
         prev_closest_waypoint = curr_closest_waypoint
         curr_closest_waypoint = one_log_dict['which_closest']
 
-        self.action= one_log_dict['steer'], one_log_dict['throttle']
+        self.angle , self.throttle = one_log_dict['steer'], one_log_dict['throttle']
 
-        return self.action
-
+        return self.angle, self.throttle, self.mode, self.recording

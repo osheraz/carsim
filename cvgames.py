@@ -57,7 +57,7 @@ class CvGames(object):
                 if len(lines):
                     try:
                         self.draw_lines(lines_image, lines, thickness=1)
-                        self.draw_lines(lines_image, mid, thickness=1)
+                        # self.draw_lines(lines_image, mid, thickness=1)
                         final_image = self.combine(lines_image, self.img)
                     except:
                         pass

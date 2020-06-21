@@ -204,7 +204,7 @@ BUTTON_PRESS_NEW_TUB = False #when enabled, makes it easier to divide our data i
 #then extract that and modify DONKEY_SIM_PATH.
 DONKEY_GYM = True
 DONKEY_SIM_PATH = "/home/osher/projects/DonkeySimLinux/donkey_sim.x86_64"
-DONKEY_GYM_ENV_NAME = "donkey-generated-roads-v0"
+DONKEY_GYM_ENV_NAME = "donkey-generated-track-v0"
 
 #publish camera over network
 #This is used to create a tcp service to pushlish the camera feed

@@ -30,6 +30,7 @@ from donkeycar.parts.behavior import BehaviorPart
 from donkeycar.parts.file_watcher import FileWatcher
 from donkeycar.utils import *
 from cvgames import CvGames
+from mpc2 import MPC_Part
 from scipy.interpolate import splprep, splev
 
 
@@ -118,14 +119,17 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         else:
             raise(Exception("Unknown camera type: %s" % cfg.CAMERA_TYPE))
             
-        V.add(cam, inputs=inputs, outputs=['cam/image_array'], threaded=threaded)
+        V.add(cam, inputs=inputs, outputs=['cam/image_array' , 'info'], threaded=threaded)  # sim receive action as input
 
-    ######################### add ################################################################################
+    ######################### Lane Detection
+    # p_img = CvGames()
+    # V.add(p_img, inputs=['cam/image_array'], outputs=['cam/image_array_bw'], threaded=True)
 
-    p_img = CvGames()
-    V.add(p_img, inputs=['cam/image_array'], outputs=['cam/image_array_bw'], threaded=True)
+    #########################
 
-    ######################### add ############################################################################
+    ######################### Control method
+
+    use_mpc = True
 
     if use_joystick or cfg.USE_JOYSTICK_AS_DEFAULT:
         #modify max_throttle closer to 1.0 to have more power
@@ -140,16 +144,26 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
             V.add(netwkJs, threaded=True)
             ctr.js = netwkJs
 
+        V.add(ctr,
+              inputs=['cam/image_array'],
+              outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'],
+              threaded=True)
+
+    elif use_mpc:
+        ctr = MPC_Part()
+        V.add(ctr, inputs=['info'], outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'])
+
     else:        
         #This web controller will create a web server that is capable
         #of managing steering, throttle, and modes, and more.
         ctr = LocalWebController()
+        V.add(ctr,
+              inputs=['cam/image_array'],
+              outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'],
+              threaded=True)
 
     
-    V.add(ctr, 
-          inputs=['cam/image_array'],
-          outputs=['user/angle', 'user/throttle', 'user/mode', 'recording'],
-          threaded=True)
+
 
     #this throttle filter will allow one tap back for esc reverse
     th_filter = ThrottleFilter()
@@ -441,9 +455,12 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         V.add(AiRecordingCondition(), inputs=['user/mode', 'recording'], outputs=['recording'])
     
     #Drive train setup
+
+
     if cfg.DONKEY_GYM:
         pass
 
+    ##########     Real robot command writing
     elif cfg.DRIVE_TRAIN_TYPE == "SERVO_ESC":
         from donkeycar.parts.actuator import PCA9685, PWMSteering, PWMThrottle
 
@@ -502,7 +519,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
 
         V.add(steering, inputs=['angle'])
         V.add(motor, inputs=["throttle"])
-
+    ##########
     
     #add tub to save data
 
