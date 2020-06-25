@@ -17,22 +17,21 @@ import numpy as np
 
 # MPC-RELATED
 # Constraints for MPC
-STEER_BOUND = 1.0
+STEER_BOUND = 1.5
 STEER_BOUNDS = (-STEER_BOUND, STEER_BOUND)
 THROTTLE_BOUND = 0.1
 THROTTLE_BOUNDS = (0, THROTTLE_BOUND)
 
 class Controller(metaclass=ABCMeta):
     @abstractmethod
-    def control(self, pts_2D, measurements, depth_array):
+    def control(self, track, measurements, depth_array):
         pass
 
     @staticmethod
-    def _calc_closest_dists_and_location(measurements, pts_2D): # state , track
-        location = np.array(measurements['pos'])[:2] # x, y
-        dists = np.linalg.norm(pts_2D - location, axis=1)
+    def _calc_closest_dists_and_location(measurements, track): # state , track
+        dists = np.linalg.norm(track - measurements, axis=1)
         which_closest = np.argmin(dists)
-        return which_closest, dists, location
+        return which_closest, dists, measurements
 
 
 class _EqualityConstraints(object):
@@ -69,10 +68,10 @@ class MPCController(Controller):
         self.consec_steer_coeff = 50
 
         # Front wheel L
-        self.Lf = 0.1  # TODO: Edit to real distance between wheels
+        self.Lf = 0.1 # TODO: Edit to real distance between wheels
 
         # How the polynomial fitting the desired curve is fitted
-        self.steps_poly = 30
+        self.steps_poly = 7
         self.poly_degree = 3
 
         # Bounds for the optimizer
@@ -190,24 +189,29 @@ class MPCController(Controller):
 
         return cost_func, cost_grad_func, constr_funcs
 
-    def control(self, pts_2D, measurements):  # Track , curr_position
+    def control(self, track, measurements , start_pos ):  # Track , curr_position
+
+        x_curr = measurements['pos'][0] - start_pos[0]
+        y_curr = measurements['pos'][2] - start_pos[1]
+
         which_closest_i, _, location = self._calc_closest_dists_and_location(
-            measurements,
-            pts_2D
+            np.array([x_curr , y_curr]),
+            track
         )  # function that return the forward trajectory from the lane detection system
+
 
         # Stabilizes polynomial fitting
         which_closest_shifted = which_closest_i - 5
         # NOTE: `which_closest_shifted` might become < 0, but the modulo operation below fixes that
 
         indeces = which_closest_shifted + self.steps_poly * np.arange(self.poly_degree + 1)
-        indeces = indeces % pts_2D.shape[0]
-        pts = pts_2D[indeces]
+        indeces = indeces % track.shape[0]
+        pts = track[indeces]
 
         # TODO: NEED TO VERIFY IF STATE IS W.R.T CURR_POSE OR ORIGIN
-        cte_sim =measurements['cte']
-        v = measurements['pos'][2]   # current forward speed
-        ψ = np.arctan2(measurements['pos'][1], measurements['pos'][0])  # current heading
+        cte_sim = measurements['cte']
+        v = measurements['speed'] * 0.5  # current forward speed
+        ψ = np.arctan2(y_curr, x_curr)  # current heading
 
         cos_ψ = np.cos(ψ)
         sin_ψ = np.sin(ψ)
@@ -239,20 +243,25 @@ class MPCController(Controller):
         one_log_dict = {
             'x': x,
             'y': y,
-            'steer': self.steer,
+            'pts_car': pts_car[0],
+            'steer': -self.steer,
             'throttle': self.throttle,
             'speed': v,
             'psi': ψ,
             'cte': cte,
+            'cte_sim': cte_sim,
             'epsi': eψ,
             'which_closest': which_closest_i,
         }
+
         # for i, coeff in enumerate(poly):
         #     one_log_dict['poly{}'.format(i)] = coeff
 
         # for i in range(pts_car.shape[0]):
         #     for j in range(pts_car.shape[1]):
         #         one_log_dict['pts_car_{}_{}'.format(i, j)] = pts_car[i][j]
+
+        print ({k: round(v, 2) if isinstance(v, float) else v for k, v in one_log_dict.items()})
 
         return one_log_dict
 
@@ -337,36 +346,36 @@ class MPC_Part():
     '''
 
     def __init__(self, mode='user'):
-        self.target_speed = 0.1  # can ben change to any desired speed (also non-constant)
+        self.target_speed = 0.1 # can ben change to any desired speed (also non-constant)
         self.action = [0.0, 0.0]  # [ steering , thorttle]
         self.running = True
-        self.state = {'pos': (0., 0., 0.)} # x , y ,v
+        # self.state = {'pos': (0., 0., 0.)} # x , y , z
+        self.info = {'pos': (0., 0., 0.), 'cte': 0, "speed": 0, "hit": 0}
         self.state_vars = ('x', 'y', 'v', 'ψ', 'cte', 'eψ')
         self.mode = mode
         self.recording = False
         self.angle = 0.0
         self.throttle = 0.0
         self.track_DF = pd.read_csv('racetrack.txt', header=None)  # check if need to rescale
-        self.pts_2D = self.track_DF.loc[:, [0, 1]].values - self.track_DF.loc[0, [0, 1]].values  # [ x , y ]
+        self.pts_init = np.array(self.track_DF.loc[0, [0, 1]].values)
+        self.track = self.track_DF.loc[:, [0, 1]].values - self.track_DF.loc[0, [0, 1]].values  # [ x , y ]
 
-
-        # self.pts_2D = self.convert_track()
-
+        # self.track = self.convert_track()
         self.controller = MPCController(self.target_speed)
 
     def convert_track(self):
-        tck, u = splprep(self.pts_2D.T, u=None, s=2.0, per=1, k=3)
+        tck, u = splprep(self.track.T, u=None, s=2.0, per=1, k=3)
         u_new = np.linspace(u.min(), u.max(), 100)
         x_new, y_new = splev(u_new, tck, der=0)
-        pts_2D = np.c_[x_new, y_new]
+        track = np.c_[x_new, y_new]
 
     def run(self, state):
-        self.state = state
+        self.info = state
         curr_closest_waypoint = None
         prev_closest_waypoint = None
-        num_waypoints = self.pts_2D.shape[0]
+        num_waypoints = self.track.shape[0]
 
-        one_log_dict = self.controller.control(self.pts_2D, state, )  # calc the control command for a given state
+        one_log_dict = self.controller.control(self.track, state,self.pts_init)  # calc the control command for a given state
         prev_closest_waypoint = curr_closest_waypoint
         curr_closest_waypoint = one_log_dict['which_closest']
 
