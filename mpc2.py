@@ -17,7 +17,7 @@ import numpy as np
 
 # MPC-RELATED
 # Constraints for MPC
-STEER_BOUND = 1.5
+STEER_BOUND = 1.0
 STEER_BOUNDS = (-STEER_BOUND, STEER_BOUND)
 THROTTLE_BOUND = 0.1
 THROTTLE_BOUNDS = (0, THROTTLE_BOUND)
@@ -60,7 +60,7 @@ class MPCController(Controller):
 
         # Cost function coefficients
         self.cte_coeff = 100  # 100 cross-track-error coefficient
-        self.epsi_coeff = 100  # 100 orientation-error coefficient
+        self.epsi_coeff = 40  # 100 orientation-error coefficient
         self.speed_coeff = 0.4  # 0.2
         self.acc_coeff = 1  # 1
         self.steer_coeff = 0.1  # 0.1
@@ -68,7 +68,7 @@ class MPCController(Controller):
         self.consec_steer_coeff = 50
 
         # Front wheel L
-        self.Lf = 0.1 # TODO: Edit to real distance between wheels
+        self.Lf = 2.0 # TODO: Edit to real distance between wheels
 
         # How the polynomial fitting the desired curve is fitted
         self.steps_poly = 7
@@ -210,7 +210,7 @@ class MPCController(Controller):
 
         # TODO: NEED TO VERIFY IF STATE IS W.R.T CURR_POSE OR ORIGIN
         cte_sim = measurements['cte']
-        v = measurements['speed'] * 0.5  # current forward speed
+        v = measurements['speed'] * 0.2  # current forward speed
         ψ = np.arctan2(y_curr, x_curr)  # current heading
 
         cos_ψ = np.cos(ψ)
@@ -243,7 +243,6 @@ class MPCController(Controller):
         one_log_dict = {
             'x': x,
             'y': y,
-            'pts_car': pts_car[0],
             'steer': -self.steer,
             'throttle': self.throttle,
             'speed': v,
@@ -346,8 +345,8 @@ class MPC_Part():
     '''
 
     def __init__(self, mode='user'):
-        self.target_speed = 0.1 # can ben change to any desired speed (also non-constant)
-        self.action = [0.0, 0.0]  # [ steering , thorttle]
+        self.target_speed = 0.3 # can ben change to any desired speed (also non-constant)
+
         self.running = True
         # self.state = {'pos': (0., 0., 0.)} # x , y , z
         self.info = {'pos': (0., 0., 0.), 'cte': 0, "speed": 0, "hit": 0}
@@ -356,7 +355,9 @@ class MPC_Part():
         self.recording = False
         self.angle = 0.0
         self.throttle = 0.0
-        self.track_DF = pd.read_csv('racetrack.txt', header=None)  # check if need to rescale
+        # self.track_DF = pd.read_csv('racetrack.txt', header=None)  # check if need to rescale
+        self.track_DF = pd.read_csv('racetrack2.csv', header=None)  # check if need to rescale
+
         self.pts_init = np.array(self.track_DF.loc[0, [0, 1]].values)
         self.track = self.track_DF.loc[:, [0, 1]].values - self.track_DF.loc[0, [0, 1]].values  # [ x , y ]
 
