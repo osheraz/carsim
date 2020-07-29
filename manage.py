@@ -29,7 +29,7 @@ from donkeycar.parts.throttle_filter import ThrottleFilter
 from donkeycar.parts.behavior import BehaviorPart
 from donkeycar.parts.file_watcher import FileWatcher
 from donkeycar.utils import *
-from cvgames import CvGames
+from cvgames import LaneDetector
 from mpc2 import MPC_Part
 from scipy.interpolate import splprep, splev
 
@@ -122,8 +122,8 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
         V.add(cam, inputs=inputs, outputs=['cam/image_array' , 'info'], threaded=threaded)  # sim receive action as input
 
     ######################### Lane Detection
-    # p_img = CvGames()
-    # V.add(p_img, inputs=['cam/image_array'], outputs=['cam/image_array_bw'], threaded=True)
+    #p_img = LaneDetector()
+    #V.add(p_img, inputs=['cam/image_array'], outputs=['cam/image_array_bw'], threaded=True)
 
     #########################
 
@@ -265,7 +265,7 @@ def drive(cfg, model_path=None, use_joystick=False, model_type=None, camera_type
             return 0
 
     rec_tracker_part = RecordTracker()
-    V.add(rec_tracker_part, inputs=["tub/num_records"], outputs=['records/alert'])
+    # V.add(rec_tracker_part, inputs=["tub/num_records"], outputs=['records/alert'])
 
     if cfg.AUTO_RECORD_ON_THROTTLE and isinstance(ctr, JoystickController):
         #then we are not using the circle button. hijack that to force a record count indication
