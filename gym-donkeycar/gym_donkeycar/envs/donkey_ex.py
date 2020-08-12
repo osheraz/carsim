@@ -1,0 +1,3 @@
+
+class SimFailed(Exception):
+    pass
