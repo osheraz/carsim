@@ -17,11 +17,9 @@ Linux: [donkey.x86_64](https://drive.google.com/file/d/1p5Sn27o7YJC2SUBatCfUSlt9
 
 Then place the executable inside the `carsim` folder. 
 
-Notice that I do have the Windows executable available for download. If you are Windows users, please go ahead and build the environment yourself.
-
 ### Install Donkeycar
 
-First, we have to install `donkey_gym` python package, which extends the OpenAI gym class to allow RL developers to interact with Donkey environment using the familiar OpenAI gym like interface. 
+First, we have to install `donkey_gym` python package, which extends the OpenAI gym class to allow ML developers to interact with Donkey environment using the familiar OpenAI gym like interface. 
 
 To install the package, do the following guide:
 Linux: [donkey install](https://docs.donkeycar.com/guide/install_software/)
